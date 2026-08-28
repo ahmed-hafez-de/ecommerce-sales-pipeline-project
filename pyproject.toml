@@ -1,0 +1,29 @@
+[project]
+name = "ecommerce-sales-pipeline-project"
+version = "0.1.0"
+description = "An Airflow ETL pipeline transforming raw e-commerce data into a Postgres star schema for BI."
+readme = "README.md"
+authors = [{ name = "Ahmed Hafez", email = "ahmed.hafez.de@gmail.com" }]
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.0.5",
+    "psycopg2-binary>=2.9.12",
+    "pytest>=9.1.1",
+    "python-dotenv>=1.2.3",
+    "ruff>=0.16.5",
+    "sqlalchemy>=2.0.52",
+]
+
+[project.scripts]
+ecommerce-sales-pipeline-project = "ecommerce_sales_pipeline_project:main"
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "ruff>=0.16.5",
+]
