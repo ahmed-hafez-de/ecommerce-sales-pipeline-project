@@ -12,3 +12,6 @@ wheels/
 # env variables
 .env
 !.env.example
+
+# Ruff cache directory
+.ruff_cache/
