@@ -44,9 +44,7 @@ source = { editable = "." }
 dependencies = [
     { name = "pandas" },
     { name = "psycopg2-binary" },
-    { name = "pytest" },
     { name = "python-dotenv" },
-    { name = "ruff" },
     { name = "sqlalchemy" },
 ]
 
@@ -61,9 +59,7 @@ dev = [
 requires-dist = [
     { name = "pandas", specifier = ">=3.0.5" },
     { name = "psycopg2-binary", specifier = ">=2.9.12" },
-    { name = "pytest", specifier = ">=9.1.1" },
     { name = "python-dotenv", specifier = ">=1.2.3" },
-    { name = "ruff", specifier = ">=0.16.5" },
     { name = "sqlalchemy", specifier = ">=2.0.52" },
 ]
 
