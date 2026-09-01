@@ -7,9 +7,10 @@
 ## 🚨 The Problem
 
 E-commerce teams are drowning in dirty data. Raw transaction logs from online retail systems are riddled with missing customer IDs, negative quantities (returns), inconsistent date formats, and corrupted string values. Running analytics directly on these files means:
-    - **Marketing** can't reliably identify top customers or revenue trends.
-    - **Finance** gets wrong numbers because `Quantity` contains returns mixed with sales.
-    - **Analysts** waste hours debugging type errors instead of delivering insights.
+
+- **Marketing** can't reliably identify top customers or revenue trends.
+- **Finance** gets wrong numbers because `Quantity` contains returns mixed with sales.
+- **Analysts** waste hours debugging type errors instead of delivering insights.
 
 ## 💡 The Solution
 
@@ -17,10 +18,10 @@ This project builds a single source of truth by ingesting raw e-commerce data in
 
 Key business questions this warehouse answers:
 
-    - Who are our top 10 customers by lifetime revenue?
-    - What are the monthly sales trends broken down by country?
-    - Which products drive the most revenue vs. volume?
-    - How is transaction volume distributed geographically?
+- Who are our top 10 customers by lifetime revenue?
+- What are the monthly sales trends broken down by country?
+- Which products drive the most revenue vs. volume?
+- How is transaction volume distributed geographically?
 
 ---
 
@@ -57,8 +58,8 @@ Key business questions this warehouse answers:
     - **Decision:** The pipeline uses psycopg2.copy_expert() with a Python file stream piped to STDIN.
     - **Trade-off:** Since PostgreSQL is isolated in Docker without host file access, streaming over STDIN bypasses container boundaries completely. This eliminates shared mounts and path mapping headaches while boosting speed by avoiding an extra disk I/O hop.
 
-3. **Why PG* environment variables?**
-    - Decision: Connection config uses PGHOST, PGPORT, PGUSER, etc. instead of custom names like DB_HOST.
+3. **Why `PG` environment variables?**
+    - **Decision:** Connection config uses PGHOST, PGPORT, PGUSER, etc. instead of custom names like DB_HOST.
     - **Trade-off:** Because psycopg2 natively reads PG* environment variables, the driver auto-configures itself without manual connection string parsing. This reduces lines of code and eliminates places where credentials could accidentally leak into logs.
 
 4. **Why Truncate-and-Reload for Bronze?**
@@ -71,39 +72,40 @@ Key business questions this warehouse answers:
 
 ### Prerequisites
 
-    - **Docker** installed and running.
-    - **Python 3.12+** with `uv` installed.
-    - **Git** (to clone the repo).
+- **Docker** installed and running.
+- **Python 3.12+** with `uv` installed.
+- **Git** (to clone the repo).
 
 ### Step 1 — Spin Up PostgreSQL
 
-    ```bash
-    docker run --name local-postgres \
-    -e POSTGRES_USER=postgres \
-    -e POSTGRES_PASSWORD=postgres \
-    -p 54876:5432 \
-    -d postgres:latest
-    ```
+```bash
+docker run --name local-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 54876:5432 \
+  -d postgres:latest
+```
 
 ### Step 2 — Configure Credentials
 
 Copy the example env file and fill in your local values:
 
-    ```bash
-    cp .env.example .env
-    ```
+```bash
+cp .env.example .env
+```
 
 ### Step 3 — Install Dependencies
 
-    ```bash
-    uv sync
-    ```
+```bash
+uv sync
+```
 
 ### Step 4 — Run the Bronze Pipeline
 
-    ```bash
-    uv run python src/ingestion/ingest_bronze.py
-    ```
+```bash
+uv run python src/ingestion/ingest_bronze.py
+```
+
 ---
 
 ## 🏅 Medallion Pipeline Stages
