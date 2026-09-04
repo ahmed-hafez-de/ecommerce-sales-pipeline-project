@@ -40,6 +40,14 @@ To keep this README clear and concise, the complete data cleaning rules—includ
 
 ---
 
+## 🧪 Automated Testing & QA
+
+This project uses an automated testing suite with **Pytest** to keep the pipeline reliable without risking real data. Instead of using fake data mocks, the tests run against a real, isolated PostgreSQL sandbox database (`ecommerce_platform_test`). This test database automatically spins up, verifies the pipeline's logic, and cleans up after itself so development data stays completely safe.
+
+👉 **[Read the Data Pipeline Integration Testing Guide](docs/testing.md)**
+
+---
+
 ## 🏗️ Architecture Overview
 
 ---
@@ -51,31 +59,27 @@ To keep this README clear and concise, the complete data cleaning rules—includ
 | **Database** | PostgreSQL 14+ | Warehouse engine, containerized via Docker |
 | **Language** | Python 3.12+ | Ingestion pipelines and orchestration logic |
 | **Package Manager** | uv | Fast, modern Python dependency management |
-| **DB Driver** | psycopg2 | High-performance PostgreSQL adapter with copy_expert() |
-| **Config** | python-dotenv | Secure credential management via .env files |
+| **DB Driver** | psycopg2 | High-performance PostgreSQL adapter with `copy_expert()` |
+| **Config** | python-dotenv | Secure credential management via `.env` files |
 | **Code Quality** | Ruff | Blazing-fast linting and formatting |
 | **Infrastructure** | Docker | Isolated, reproducible database environment |
 | **Orchestration** | Apache Airflow | Scheduled DAGs for recurring ETL runs |
 
 ---
 
-## 📂 Project Structure
-
----
-
 ## ⚖️ Design Decisions & Trade-Offs
 
 1. **Why `TEXT` columns in Bronze instead of strict types?**
-    - **Decision:** The raw landing table uses generic TEXT fields for every column.
+    - **Decision:** The raw landing table uses generic `TEXT` fields for every column.
     - **Trade-off:** Raw loading guarantees ingestion never crashes from messy source formats (like mixed dates, blank IDs, or string-encoded numbers). Cleaning and validation are handled later in the Silver layer.
 
 2. **Why stream via `STDIN` instead of `COPY FROM` file paths?**
-    - **Decision:** The pipeline uses psycopg2.copy_expert() with a Python file stream piped to STDIN.
-    - **Trade-off:** Since PostgreSQL is isolated in Docker without host file access, streaming over STDIN bypasses container boundaries completely. This eliminates shared mounts and path mapping headaches while boosting speed by avoiding an extra disk I/O hop.
+    - **Decision:** The pipeline uses `psycopg2.copy_expert()` with a Python file stream piped to `STDIN`.
+    - **Trade-off:** Since PostgreSQL is isolated in Docker without host file access, streaming over `STDIN` bypasses container boundaries completely. This eliminates shared mounts and path mapping headaches while boosting speed by avoiding an extra disk I/O hop.
 
 3. **Why `PG` environment variables?**
-    - **Decision:** Connection config uses PGHOST, PGPORT, PGUSER, etc. instead of custom names like DB_HOST.
-    - **Trade-off:** Because psycopg2 natively reads PG* environment variables, the driver auto-configures itself without manual connection string parsing. This reduces lines of code and eliminates places where credentials could accidentally leak into logs.
+    - **Decision:** Connection config uses `PGHOST`, `PGPORT`, `PGUSER`, etc. instead of custom names like DB_HOST.
+    - **Trade-off:** Because `psycopg2` natively reads `PG` environment variables, the driver auto-configures itself without manual connection string parsing. This reduces lines of code and eliminates places where credentials could accidentally leak into logs.
 
 4. **Why Truncate-and-Reload for Bronze?**
     - **Decision:** Every Bronze run wipes the table and reloads from scratch.
@@ -88,6 +92,10 @@ To keep this README clear and concise, the complete data cleaning rules—includ
 6. **Why use a transaction to wrap data insertion processes?**
     - **Decision:** Table preparation, truncation, and data loading operations are executed within a single database transaction.
     - **Trade-off:** If any part of the insertion process fails, the entire transaction rolls back. This prevents tables from being left empty, duplicated, or partially loaded after a failed run.
+
+---
+
+## 📂 Project Structure
 
 ---
 
@@ -123,16 +131,18 @@ cp .env.example .env
 uv sync
 ```
 
-### Step 4 — Run the Bronze Pipeline
+### Step 4 — Run the Pipeline
 
 ```bash
+# 1. Load Raw CSV to Bronze
 uv run python src/ingestion/ingest_bronze.py
-```
 
-### Step 5 — Run the Silver Pipeline
-
-```bash
+# 2. Clean, type, and deduplicate into Silver
 uv run python src/transformation/transform_silver.py
 ```
 
----
+### Step 5 — Run Automated Tests
+
+```bash
+uv run python -m pytest -v
+```
