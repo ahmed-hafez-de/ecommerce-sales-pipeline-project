@@ -25,6 +25,21 @@ Key business questions this warehouse answers:
 
 ---
 
+## 🏅 Medallion Pipeline Stages
+
+| Layer | What Happens |
+| :--- | :--- |
+| 🟫 **Bronze** | Raw CSV → PostgreSQL via atomic truncate-and-load. All columns stored as TEXT. |
+| ⬜ **Silver** | Bronze → cleaned, typed, standardized transaction data with deduplication and business rules. |
+
+### 🔍 Silver Layer Business Logic
+
+To keep this README clear and concise, the complete data cleaning rules—including deduplication, type casting, and transaction filtering are documented separately. Read the full breakdown in the Silver Layer Transformations Guide.
+
+👉 **[Read the Silver Layer Transformations Guide](docs/silver_layer_transformations.md)**
+
+---
+
 ## 🏗️ Architecture Overview
 
 ---
@@ -66,6 +81,14 @@ Key business questions this warehouse answers:
     - **Decision:** Every Bronze run wipes the table and reloads from scratch.
     - **Trade-off:** For this dataset size (~500K rows), a full reload takes seconds and eliminates complex incremental merge logic. As data volumes scale, incremental loading will be introduced in the Silver and Gold layers where performance impact matters most.
 
+5. **Why use Python for orchestration instead of putting everything in SQL?**
+    - **Decision:** SQL handles the data transformation while Python handles execution, transaction management, error handling, logging, and validation.
+    - **Trade-off:** This provides a clean separation of responsibilities and makes the pipeline easier to integrate later with an orchestrator such as Airflow.
+
+6. **Why use a transaction to wrap data insertion processes?**
+    - **Decision:** Table preparation, truncation, and data loading operations are executed within a single database transaction.
+    - **Trade-off:** If any part of the insertion process fails, the entire transaction rolls back. This prevents tables from being left empty, duplicated, or partially loaded after a failed run.
+
 ---
 
 ## 🚀 Getting Started
@@ -106,10 +129,10 @@ uv sync
 uv run python src/ingestion/ingest_bronze.py
 ```
 
+### Step 5 — Run the Silver Pipeline
+
+```bash
+uv run python src/transformation/transform_silver.py
+```
+
 ---
-
-## 🏅 Medallion Pipeline Stages
-
-| Layer | What Happens |
-| :--- | :--- |
-| 🟫 **Bronze** | Raw CSV → PostgreSQL via atomic truncate-and-load. All columns stored as TEXT. |
