@@ -5,13 +5,14 @@ build/
 dist/
 wheels/
 *.egg-info
+.pytest_cache
 
 # Virtual environments
 .venv
 
 # env variables
 .env
-!.env.example
+.env.test
 
 # Ruff cache directory
 .ruff_cache/
