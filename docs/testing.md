@@ -88,8 +88,11 @@ python -m pytest -v
 
 ```bash
 # Test Bronze Ingestion only
-python -m pytest -v tests/test_bronze_pipeline.py
+python -m pytest -v tests/test_bronze.py
 
 # Test Silver Transformation only
-python -m pytest -v tests/test_silver_pipeline.py
+python -m pytest -v tests/test_silver.py
+
+# Test Gold Transformation only
+python -m pytest -v tests/test_gold.py
 ```
