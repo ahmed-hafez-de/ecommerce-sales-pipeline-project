@@ -18,7 +18,14 @@ def db_conn():
     # SETUP: clean before test
     with conn.cursor() as cursor:
         cursor.execute(
-            "DROP TABLE IF EXISTS bronze_sales; DROP TABLE IF EXISTS silver_sales;"
+            """
+                DROP TABLE IF EXISTS fact_sales CASCADE;
+                DROP TABLE IF EXISTS dim_product CASCADE;
+                DROP TABLE IF EXISTS dim_customer CASCADE;
+                DROP TABLE IF EXISTS dim_date CASCADE;
+                DROP TABLE IF EXISTS silver_sales CASCADE;
+                DROP TABLE IF EXISTS bronze_sales CASCADE;
+            """
         )
         conn.commit()
 
@@ -28,7 +35,14 @@ def db_conn():
     finally:
         with conn.cursor() as cursor:
             cursor.execute(
-                "DROP TABLE IF EXISTS bronze_sales; DROP TABLE IF EXISTS silver_sales;"
+                """
+                    DROP TABLE IF EXISTS fact_sales CASCADE;
+                    DROP TABLE IF EXISTS dim_product CASCADE;
+                    DROP TABLE IF EXISTS dim_customer CASCADE;
+                    DROP TABLE IF EXISTS dim_date CASCADE;
+                    DROP TABLE IF EXISTS silver_sales CASCADE;
+                    DROP TABLE IF EXISTS bronze_sales CASCADE;
+                """
             )
             conn.commit()
         conn.close()
