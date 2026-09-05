@@ -31,12 +31,42 @@ Key business questions this warehouse answers:
 | :--- | :--- |
 | 🟫 **Bronze** | Raw CSV → PostgreSQL via atomic truncate-and-load. All columns stored as TEXT. |
 | ⬜ **Silver** | Bronze → cleaned, typed, standardized transaction data with deduplication and business rules. |
+| 🟨 **Gold** | Star schema (Fact & Dimension tables) ready for BI dashboards. |
 
 ### 🔍 Silver Layer Business Logic
 
 To keep this README clear and concise, the complete data cleaning rules—including deduplication, type casting, and transaction filtering are documented separately. Read the full breakdown in the Silver Layer Transformations Guide.
 
 👉 **[Read the Silver Layer Transformations Guide](docs/silver_layer_transformations.md)**
+
+### ⭐ Gold Layer Data Modeling (Star Schema)
+
+The Gold layer transforms conformed Silver data into a **Star Schema** tailored for fast OLAP queries, BI reporting, and executive dashboards.
+
+```text
+                    ┌─────────────────┐
+                    │   dim_product   │
+                    │─────────────────│
+                    │ product_key PK  │
+                    │ stock_code  U   │
+                    │ description     │
+                    └────────▲────────┘
+                             │
+┌──────────────┐    ┌────────┴────────┐    ┌──────────────┐
+│   dim_date   │    │   fact_sales    │    │ dim_customer │
+│──────────────│    │─────────────────│    │──────────────│
+│ date_key PK  │───▶│ sales_id PK     │◀───│ customer_key │
+│ full_date    │    │ invoice_no      │    │ customer_id U│
+│ year         │    │ date_key FK     │    └──────────────┘
+│ quarter      │    │ product_key FK  │
+│ month        │    │ customer_key FK │
+│ day_of_month │    │ quantity        │
+│ day_name     │    │ unit_price      │
+│ is_weekend   │    │ total_amount    │
+└──────────────┘    │ country         │
+                    │ is_cancelled    │
+                    └─────────────────┘
+```
 
 ---
 
@@ -134,11 +164,14 @@ uv sync
 ### Step 4 — Run the Pipeline
 
 ```bash
-# 1. Load Raw CSV to Bronze
+# Step 1: Load Raw CSV to Bronze
 uv run python src/ingestion/ingest_bronze.py
 
-# 2. Clean, type, and deduplicate into Silver
+# Step 2: Clean types, format fields, and remove duplicate rows into the Silver layer
 uv run python src/transformation/transform_silver.py
+
+# Step 3: Build and load the Gold layer Star Schema (Fact and Dimensions)
+uv run python src/transformation/transform_gold.py
 ```
 
 ### Step 5 — Run Automated Tests
