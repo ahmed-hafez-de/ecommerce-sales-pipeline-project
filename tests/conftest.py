@@ -33,16 +33,19 @@ def db_conn():
         yield conn  # Hand control over to the executing test function
     # TEARDOWN: Clear tables and kill database after test completion
     finally:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                    DROP TABLE IF EXISTS fact_sales CASCADE;
-                    DROP TABLE IF EXISTS dim_product CASCADE;
-                    DROP TABLE IF EXISTS dim_customer CASCADE;
-                    DROP TABLE IF EXISTS dim_date CASCADE;
-                    DROP TABLE IF EXISTS silver_sales CASCADE;
-                    DROP TABLE IF EXISTS bronze_sales CASCADE;
-                """
-            )
-            conn.commit()
-        conn.close()
+        try:
+            conn.rollback()
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                        DROP TABLE IF EXISTS fact_sales CASCADE;
+                        DROP TABLE IF EXISTS dim_product CASCADE;
+                        DROP TABLE IF EXISTS dim_customer CASCADE;
+                        DROP TABLE IF EXISTS dim_date CASCADE;
+                        DROP TABLE IF EXISTS silver_sales CASCADE;
+                        DROP TABLE IF EXISTS bronze_sales CASCADE;
+                    """
+                )
+                conn.commit()
+        except Exception:  # noqa: BLE001, S110
+            pass
