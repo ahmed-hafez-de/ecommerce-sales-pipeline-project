@@ -56,6 +56,9 @@ def run_gold_transformation():
             cursor.execute("SELECT COUNT(*) FROM fact_sales;")
             total_sales = cursor.fetchone()[0]
 
+            cursor.execute("SELECT COUNT(*) FROM silver_sales;")
+            total_silver = cursor.fetchone()[0]
+
             cursor.execute("SELECT COUNT(*) FROM dim_customer;")
             total_customers = cursor.fetchone()[0]
 
@@ -77,12 +80,25 @@ def run_gold_transformation():
             elapsed_time = time.time() - start_time
 
             logger.info(
-                f"Gold transformation complete successfully! "
-                f"Fact Rows: {total_sales} | "
-                f"Customers Monitored: {total_customers} | "
-                f"Products Tracked: {total_products} | "
-                f"Sales mapped to Unknown Customer (-1): {anonymous_sales} | "
-                f"Duration: {elapsed_time:.2f} seconds"
+                "========================================================================="
+            )
+            logger.info(
+                "                      GOLD LAYER VALIDATION REPORT                       "
+            )
+            logger.info(
+                "========================================================================="
+            )
+            logger.info(f" -> Silver Source Rows:          {total_silver}")
+            logger.info(f" -> Gold Fact Sales Rows Saved:  {total_sales}")
+            logger.info(f" -> Unique Customers Tracked:    {total_customers}")
+            logger.info(f" -> Unique Products Monitored:   {total_products}")
+            logger.info(f" -> Anonymous/Unknown Sales:     {anonymous_sales}")
+            logger.info(
+                f" -> Target Equality Status:      {'PASS' if total_sales == total_silver else 'FAIL - DATA LEAKAGE DETECTED'}"
+            )
+            logger.info(f" -> Extraction Run Duration:     {elapsed_time:.2f} seconds")
+            logger.info(
+                "========================================================================="
             )
 
     except FileNotFoundError as fnf_error:
