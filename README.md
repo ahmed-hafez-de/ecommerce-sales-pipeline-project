@@ -68,6 +68,39 @@ The Gold layer transforms conformed Silver data into a **Star Schema** tailored 
                     └─────────────────┘
 ```
 
+### 🔄 Automated Orchestration with Apache Airflow
+
+The entire Medallion data engineering lifecycle is managed using containerized **Apache Airflow**. Airflow handles scheduling, automated retries, failure tracking, and visual task orchestration without running heavy transformations inside its own memory space.
+
+Airflow maps the pipeline tasks sequentially as a Directed Acyclic Graph (DAG):
+
+```text
+ ┌──────────────────────┐       ┌───────────────────────────┐       ┌─────────────────────────┐
+ │ run_bronze_ingestion │ ────▶ │ run_silver_transformation │ ────▶ │ run_gold_transformation │
+ └──────────────────────┘       └───────────────────────────┘       └─────────────────────────┘
+      (Ingest CSV)                   (Clean & Deduplicate)             (Load Rerun-Safe Schema)
+```
+
+The DAG runs **idempotently**. If any layer fails due to a network or database interruption, Airflow isolates the crash point. You can fix the issue and retry only the broken layer from the dashboard UI without corrupting rows or losing downstream transaction metrics.
+
+The containerized infrastructure explicitly decouples the coordination engine from the analytical storage layer:
+
+```text
+                               ┌───────────────────────────────────┐
+                               │       Docker Compose Environment  │
+                               └─────────────────┬─────────────────┘
+                                                 │
+                       ┌─────────────────────────┴─────────────────────────┐
+                       ▼                                                   ▼
+     ┌──────────────────────────────────┐                ┌────────────────────────────────────┐
+     │       airflow_metadata_db        │                │      ecommerce_warehouse_db        │
+     │──────────────────────────────────│                │────────────────────────────────────│
+     │  • DATABASE=airflow              │                │  • DATABASE=ecommerce_platform     │
+     │  • Tracks Task States / DAG Runs │                │  • DATABASE=ecommerce_platform_test│
+     │  • Hidden from Business Users    │                │  • Port: 54876                     │
+     └──────────────────────────────────┘                └────────────────────────────────────┘
+```
+
 ---
 
 ## 🧪 Automated Testing & QA
@@ -123,6 +156,21 @@ This project uses an automated testing suite with **Pytest** to keep the pipelin
     - **Decision:** Table preparation, truncation, and data loading operations are executed within a single database transaction.
     - **Trade-off:** If any part of the insertion process fails, the entire transaction rolls back. This prevents tables from being left empty, duplicated, or partially loaded after a failed run.
 
+7. **Why isolate the Metadata Database from the Business Data Warehouse?**
+
+    - **Decision:** Separate Postgres instances handle Airflow internal processing and e-commerce transactions.
+    - **Trade-off:** This prevents data load drops from breaking core scheduler loops and maintains separate schemas for straightforward interview delivery.
+
+---
+
+## 📊 Core Environment Mappings
+
+| **Service Component**            | **Internal Hostname**   | **Shared Local Port**   | **Default Credentials** |
+|---                               | ---                     | ---                     | ---                     |
+| **Data Warehouse DB**            | `warehouse-db`          | `54876`                 | `postgres` / `postgres` |
+| **Airflow Webserver Dashboard**  | `airflow-webserver`     | `8080`                  | `admin` / `admin`       |
+| **Airflow Metadata DB**          | airflow-db              | *Isolated internal*     | `airflow` / `airflow`   |
+
 ---
 
 ## 📂 Project Structure
@@ -137,45 +185,81 @@ This project uses an automated testing suite with **Pytest** to keep the pipelin
 - **Python 3.12+** with `uv` installed.
 - **Git** (to clone the repo).
 
-### Step 1 — Spin Up PostgreSQL
+### Step 1 — Configure Credentials
 
-```bash
-docker run --name local-postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -p 54876:5432 \
-  -d postgres:latest
-```
-
-### Step 2 — Configure Credentials
-
-Copy the example env file and fill in your local values:
+Before starting the containers, create your local configuration files by copying the environment templates:
 
 ```bash
 cp .env.example .env
 ```
 
-### Step 3 — Install Dependencies
+### Step 2 — Spin Up Your Infrastructure Cluster (Docker)
+
+Launch the isolated data warehouse engine database and the Airflow orchestration nodes together using Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Verify that all backend containers are active and healthy:
+
+```bash
+docker compose ps
+```
+
+### Step 3 — Install Local Dependencies (For IDE & Local Tools)
+
+Sync your local virtual environment libraries to ensure you have `ruff`, `pytest`, and database driver auto-complete tools available on your host system:
 
 ```bash
 uv sync
 ```
 
-### Step 4 — Run the Pipeline
+### Step 4 — Run and Monitor the Pipeline via Airflow Web UI
+
+1. Open your browser and navigate to the Airflow Dashboard at `http://localhost:8080`.
+2. Log in using the administrator credentials:
+
+   - **Username:** `admin`
+   - **Password:** `admin`
+3. Activate the `ecommerce_sales_pipeline` DAG using the blue toggle switch on the left.
+4. Click the **Play** icon (Trigger DAG) on the right to execute the pipeline across your data layers.
+
+### Step 5 — Verify Data Integrity and Row Counts
+
+To ensure that the pipeline ran successfully query the target tables directly inside the data warehouse container:
 
 ```bash
-# Step 1: Load Raw CSV to Bronze
-uv run python src/ingestion/ingest_bronze.py
-
-# Step 2: Clean types, format fields, and remove duplicate rows into the Silver layer
-uv run python src/transformation/transform_silver.py
-
-# Step 3: Build and load the Gold layer Star Schema (Fact and Dimensions)
-uv run python src/transformation/transform_gold.py
+# Execute the data validation counter check inside the warehouse database container
+docker compose exec warehouse-db psql -U postgres -d ecommerce_platform -c "
+SELECT
+    (SELECT COUNT(*) FROM bronze_sales) AS bronze_rows,
+    (SELECT COUNT(*) FROM silver_sales) AS silver_rows,
+    (SELECT COUNT(*) FROM fact_sales) AS fact_rows;
+"
 ```
 
-### Step 5 — Run Automated Tests
+**Expected Target Output:**
+
+```text
+ bronze_rows | silver_rows | fact_rows
+-------------+-------------+-----------
+      541909 |      536639 |    536639
+```
+
+### Step 6 — Run Automated Integration Tests
+
+To run your end-to-end quality assurance suite against your isolated testing database sandbox, execute:
 
 ```bash
 uv run python -m pytest -v
 ```
+
+---
+
+## 📜 Dataset Reference & Licensing
+
+The pipeline targets the **Online Retail Dataset** provided by the UCI Machine Learning Repository.
+
+- **Data Characteristics:** Cross-border transactions occurring between 01/12/2010 and 09/12/2011 for a UK-based non-store retail company.
+- **Licensing and Attribution:** Publicly accessible dataset for academic and data engineering development purposes. Distributed under the standard UCI repository guidelines.
