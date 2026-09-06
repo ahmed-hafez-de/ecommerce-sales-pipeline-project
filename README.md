@@ -139,6 +139,7 @@ This project uses an automated testing suite with **Pytest** to keep the pipelin
 │                       │   Development Tooling Network: Python 3.12  ·  uv  ·  Pytest  ·  Ruff │                  │
 │                       └───────────────────────────────────────────────────────────────────────┘                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
