@@ -113,6 +113,33 @@ This project uses an automated testing suite with **Pytest** to keep the pipelin
 
 ## 🏗️ Architecture Overview
 
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                  Apache Airflow Core  ·  Orchestration Scheduler  ·  Shared Volume Log Streams                   │
+│                    ↳ Isolated Backend Engine Context: [airflow_metadata_db Instance]                             │
+│                                                                                                                  │
+│  ┌─────────────┐      ┌───────────────────────────────────────────────────────────────────────┐    ┌───────────┐ │
+│  │  Sources    │      │         ecommerce_warehouse_db Container  ·  PostgreSQL 15  (:54876)  │    │  Consume  │ │
+│  │             │      │                                                                       │    │           │ │
+│  │  UCI Online │      │  ┌───────────────┐   ┌────────────────┐   ┌────────────────────────┐  │    │ BI        │ │
+│  │  Retail CSV │─────▶│  │ Bronze layer  │──▶│ Silver layer   │──▶│ Gold layer             │  │───▶│ Dashboards│ │
+│  │             │      │  │ Raw landing   │   │ Cleaned Data   │   │ Star Schema            │  │    │ (Metabase)│ │
+│  │  Metadata:  │      │  │               │   │                │   │                        │  │    │           │ │
+│  │  - CSV text │      │  │ Load:         │   │ Load:          │   │  fact_sales            │  │    │ Streamlit │ │
+│  │  - 541,909  │      │  │ - STDIN stream│   │ - SQL DML      │   │   ├─ dim_date          │  │    │ Web Apps  │ │
+│  │    rows     │      │  │ - Truncate    │   │ - Idempotent   │   │   ├─ dim_product       │  │    │           │ │
+│  │             │      │  │               │   │                │   │   └─ dim_customer      │  │    │ Ad-Hoc    │ │
+│  │  Anomalies: │      │  │ Format:       │   │ Logic Rules:   │   │                        │  │    │ SQL       │ │
+│  │  - null IDs │      │  │ - Generic     │   │ - type cast    │   │ Dynamic Audit Status:  │  │    │ Analytical│ │
+│  │  - returns  │      │  │   TEXT fields │   │ - window dedupe│   │ • 536,639 Fact Rows    │  │    │ Queries   │ │
+│  │  - formats  │      │  │               │   │ - cancellation │   │ • Exact Parity Check   │  │    │           │ │
+│  │             │      │  │               │   │                │   │                        │  │    │           │ │
+│  └─────────────┘      │  └───────────────┘   └────────────────┘   └────────────────────────┘  │    └───────────┘ │
+│                       │                                                                       │                  │
+│                       │   Development Tooling Network: Python 3.12  ·  uv  ·  Pytest  ·  Ruff │                  │
+│                       └───────────────────────────────────────────────────────────────────────┘                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
 ---
 
 ## 🛠️ Tech Stack
@@ -174,6 +201,37 @@ This project uses an automated testing suite with **Pytest** to keep the pipelin
 ---
 
 ## 📂 Project Structure
+
+```text
+.
+├── dags/
+│   └── ecommerce_pipeline_dag.py     # Airflow DAG
+├── data/
+│   └── Online_Retail.csv             # Source dataset asset
+├── docs/
+│   ├── silver_layer_transformations.md
+│   └── testing.md
+├── sql/
+│   ├── 01_create_bronze_tables.sql
+│   ├── 02_create_silver_tables.sql
+│   ├── 03_transform_silver.sql
+│   ├── 04_create_gold_tables.sql
+│   └── 05_transform_gold.sql         # Clean star schema transformation logic
+├── src/
+│   ├── ingestion/
+│   │   └── ingest_bronze.py          # Bronze ingestion engine
+│   └── transformation/
+│       ├── transform_gold.py         # Gold deployment runner
+│       └── transform_silver.py       # Silver normalization rules
+├── tests/
+│   ├── conftest.py                   # Automated sandbox setup/teardown fixture
+│   ├── test_bronze.py                # Bronze layer assertions
+│   ├── test_silver.py                # Silver layer assertions
+│   └── test_gold.py                  # Gold star schema structural tests
+├── docker-compose.yml                # Unified multi-service deployment layout
+├── pyproject.toml                    # UV environment tool configuration
+└── uv.lock                           # Locked dependency tree manifest
+```
 
 ---
 
